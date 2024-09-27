@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KMeans Visualization</title>
+</head>
+<body>
+    <div>
+        <label for="k">Number of Clusters (k):</label>
+        <input type="number" id="k" name="k">
+    </div>
+    <div>
+        <label for="init_method">Initialization Method:</label>
+        <select id="init_method" name="init_method">
+            <option value="random">Random</option>
+            <option value="farthest">Farthest</option>
+            <option value="kmeans++">KMeans++</option>
+        </select>
+    </div>
+    <button id="generate_dataset">Generate Dataset</button>
+    <button id="run_kmeans">Run KMeans</button>
+    <button id="step">Step</button>
+    <div id="kmeans_plot"></div>
+
+    <script>
+        let plotHtmls = [];
+        let currentPlotIndex = 0;
+        let plotReset = true;
+
+        document.getElementById('generate_dataset').addEventListener('click', function() {
+            fetch('/generate_dataset', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => console.log(data));
+        });
+
+        document.getElementById('run_kmeans').addEventListener('click', function() {
+            const k = document.getElementById('k').value;
+            const init_method = document.getElementById('init_method').value;
+
+            const formData = new FormData();
+            formData.append('k', k);
+            formData.append('init_method', init_method);
+
+            fetch('/run_kmeans', { method: 'POST', body: formData })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('kmeans_plot').innerHTML = data.plot_html;
+                    plotReset = true;
+                });
+        });
+
+        document.getElementById('step').addEventListener('click', function() {
+            const k = document.getElementById('k').value;
+            const init_method = document.getElementById('init_method').value;
+
+            const formData = new FormData();
+            formData.append('k', k);
+            formData.append('init_method', init_method);
+
+            if (plotReset) {
+                fetch('/step', { method: 'POST', body: formData })
+                    .then(response => response.json())
+                    .then(data => {
+                        plotHtmls = data.plot_htmls;
+                        currentPlotIndex = 0;
+                        plotReset = false;
+                        document.getElementById('kmeans_plot').innerHTML = plotHtmls[currentPlotIndex];
+                    });
+            } else {
+                if (currentPlotIndex < plotHtmls.length - 1) {
+                    currentPlotIndex++;
+                    document.getElementById('kmeans_plot').innerHTML = plotHtmls[currentPlotIndex];
+                }
+            }
+        });
+    </script>
+</body>
+</html>
