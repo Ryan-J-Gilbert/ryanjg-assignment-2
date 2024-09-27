@@ -4,6 +4,7 @@ import matplotlib
 matplotlib.use('Agg')  # To run Matplotlib without a display server
 import matplotlib.pyplot as plt
 from kmeans import KMeans  # Your custom KMeans implementation
+import plotly.graph_objects as go
 
 app = Flask(__name__)
 
@@ -16,7 +17,17 @@ def generate_dataset():
     # Generate a new random dataset (e.g., 2D points)
     points = np.random.uniform(-10, 10, (500, 2))  # 500 random points
     np.save('dataset.npy', points)  # Save the dataset so it persists across steps
-    return jsonify(status="Dataset generated")
+    
+    # Create a Plotly scatter plot
+    fig = go.Figure(data=go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers'))
+    plot_html = fig.to_html(full_html=False)
+
+    # save for debugging
+    # with open('plot.html', 'w', encoding='utf-8') as f:
+    #     f.write(plot_html)
+
+
+    return jsonify(status="Dataset generated", plot_html=plot_html)
     
 
 @app.route('/run_kmeans', methods=['POST'])

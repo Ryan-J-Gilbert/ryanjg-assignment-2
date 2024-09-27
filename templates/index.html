@@ -1,22 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
+  <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <title>KMeans Visualization</title>
-</head>
-<body>
+  </head>
+  <body>
     <div>
-        <label for="k">Number of Clusters (k):</label>
-        <input type="number" id="k" name="k">
+      <label for="k">Number of Clusters (k):</label>
+      <input type="number" id="k" name="k">
     </div>
     <div>
-        <label for="init_method">Initialization Method:</label>
-        <select id="init_method" name="init_method">
-            <option value="random">Random</option>
-            <option value="farthest">Farthest</option>
-            <option value="kmeans++">KMeans++</option>
-        </select>
+      <label for="init_method">Initialization Method:</label>
+      <select id="init_method" name="init_method">
+        <option value="random">Random</option>
+        <option value="farthest">Farthest</option>
+        <option value="kmeans++">KMeans++</option>
+      </select>
     </div>
     <button id="generate_dataset">Generate Dataset</button>
     <button id="run_kmeans">Run KMeans</button>
@@ -29,10 +30,24 @@
         let plotReset = true;
 
         document.getElementById('generate_dataset').addEventListener('click', function() {
-            fetch('/generate_dataset', { method: 'POST' })
-                .then(response => response.json())
-                .then(data => console.log(data));
+            fetch('/generate_dataset', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === "Dataset generated") {
+                    document.getElementById('kmeans_plot').innerHTML = data.plot_html;
+                    reloadPlotly();
+                }
+            })
+            .catch(error => console.error('Error:', error));
         });
+
+        // document.getElementById('generate_dataset').addEventListener('click', function() {
+        //     fetch('/generate_dataset', { method: 'POST' })
+        //         .then(response => response.json())
+        //         .then(data => console.log(data));
+        // });
 
         document.getElementById('run_kmeans').addEventListener('click', function() {
             const k = document.getElementById('k').value;
@@ -74,6 +89,12 @@
                 }
             }
         });
+
+        function reloadPlotly() {
+            Plotly.d3.selectAll(".plotly-graph-div").each(function () {
+                Plotly.Plots.resize(this);
+            });
+        }
     </script>
-</body>
+  </body>
 </html>
