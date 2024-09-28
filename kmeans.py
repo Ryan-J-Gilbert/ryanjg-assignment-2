@@ -78,8 +78,20 @@ class KMeans():
 
     def snap(self, centers):
         fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.data[:, 0], y=self.data[:, 1], mode='markers', marker=dict(color=self.assignment)))
-        fig.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1], mode='markers', marker=dict(color='red', size=10)))
+        fig.add_trace(go.Scatter(
+            x=self.data[:, 0], 
+            y=self.data[:, 1], 
+            mode='markers', 
+            marker=dict(color=self.assignment),
+            name='Data Points'
+        ))
+        fig.add_trace(go.Scatter(
+            x=centers[:, 0], 
+            y=centers[:, 1], 
+            mode='markers', 
+            marker=dict(color='red', symbol='cross', size=10),
+            name='Centroids'
+        ))
         self.snaps.append(fig.to_html(full_html=False))
 
     def lloyds(self, typ='random'):
@@ -103,12 +115,17 @@ class KMeans():
         self.assignment = [-1 for _ in range(len(data))]
         self.lloyds(self.init_method)
 
+    # def plot(self):
+    #     fig = go.Figure()
+    #     fig.add_trace(go.Scatter(x=self.data[:, 0], y=self.data[:, 1], mode='markers', marker=dict(color=self.assignment)))
+    #     centers = self.compute_centers()
+    #     fig.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1], mode='markers', marker=dict(color='red', size=10)))
+    #     return fig.to_html(full_html=False)
     def plot(self):
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=self.data[:, 0], y=self.data[:, 1], mode='markers', marker=dict(color=self.assignment)))
-        centers = self.compute_centers()
-        fig.add_trace(go.Scatter(x=centers[:, 0], y=centers[:, 1], mode='markers', marker=dict(color='red', size=10)))
-        return fig.to_html(full_html=False)
+        return self.snaps[-1]
+
+    def plot_steps(self):
+        return self.snaps
 
 
 # import numpy as np

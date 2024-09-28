@@ -1,100 +1,58 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <title>KMeans Visualization</title>
-  </head>
-  <body>
-    <div>
-      <label for="k">Number of Clusters (k):</label>
-      <input type="number" id="k" name="k">
-    </div>
-    <div>
-      <label for="init_method">Initialization Method:</label>
-      <select id="init_method" name="init_method">
-        <option value="random">Random</option>
-        <option value="farthest">Farthest</option>
-        <option value="kmeans++">KMeans++</option>
-      </select>
-    </div>
-    <button id="generate_dataset">Generate Dataset</button>
-    <button id="run_kmeans">Run KMeans</button>
-    <button id="step">Step</button>
-    <div id="kmeans_plot"></div>
+</head>
+
+<body>
+    <form id="kmeans_form" method="POST">
+        <div>
+            <label for="k">Number of Clusters (k):</label>
+            <input type="number" id="k" name="k" value="{{ k | default(3) }}">
+        </div>
+        <div>
+            <label for="init_method">Initialization Method:</label>
+            <select id="init_method" name="init_method">
+                <option value="random" {% if method == 'random' %}selected{% endif %}>Random</option>
+                <option value="farthest" {% if method == 'farthest' %}selected{% endif %}>Farthest</option>
+                <option value="kmeans++" {% if method == 'kmeans++' %}selected{% endif %}>KMeans++</option>
+            </select>
+        </div>
+
+        <input type="hidden" id="step_count" name="step_count" value="{{ step_count | default(-1) }}">
+
+        <!-- Three buttons for different actions -->
+        <button type="submit" formaction="/generate_dataset">Generate Dataset</button>
+        <button type="submit" formaction="/run_kmeans">Run KMeans</button>
+        <button type="submit" formaction="/step">Step</button>
+        <button type="submit" formaction="/reset_kmeans">Reset</button>
+    </form>
+
+    <div id="plot">{{ plot_html | safe }}</div> <!-- Placeholder for the Plotly graph -->
+
+    <!-- if warning is sent in as True, we should send an alert kmeans has converged -->
+    {% if warning | default(false) %}
+    <script>
+        alert("KMeans has converged!");
+    </script>
+    {% endif %}
 
     <script>
-        let plotHtmls = [];
-        let currentPlotIndex = 0;
-        let plotReset = true;
-
-        document.getElementById('generate_dataset').addEventListener('click', function() {
-            fetch('/generate_dataset', {
-                method: 'POST'
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === "Dataset generated") {
-                    document.getElementById('kmeans_plot').innerHTML = data.plot_html;
-                    reloadPlotly();
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        });
-
-        // document.getElementById('generate_dataset').addEventListener('click', function() {
-        //     fetch('/generate_dataset', { method: 'POST' })
-        //         .then(response => response.json())
-        //         .then(data => console.log(data));
-        // });
-
-        document.getElementById('run_kmeans').addEventListener('click', function() {
-            const k = document.getElementById('k').value;
-            const init_method = document.getElementById('init_method').value;
-
-            const formData = new FormData();
-            formData.append('k', k);
-            formData.append('init_method', init_method);
-
-            fetch('/run_kmeans', { method: 'POST', body: formData })
-                .then(response => response.json())
-                .then(data => {
-                    document.getElementById('kmeans_plot').innerHTML = data.plot_html;
-                    plotReset = true;
-                });
-        });
-
-        document.getElementById('step').addEventListener('click', function() {
-            const k = document.getElementById('k').value;
-            const init_method = document.getElementById('init_method').value;
-
-            const formData = new FormData();
-            formData.append('k', k);
-            formData.append('init_method', init_method);
-
-            if (plotReset) {
-                fetch('/step', { method: 'POST', body: formData })
-                    .then(response => response.json())
-                    .then(data => {
-                        plotHtmls = data.plot_htmls;
-                        currentPlotIndex = 0;
-                        plotReset = false;
-                        document.getElementById('kmeans_plot').innerHTML = plotHtmls[currentPlotIndex];
-                    });
-            } else {
-                if (currentPlotIndex < plotHtmls.length - 1) {
-                    currentPlotIndex++;
-                    document.getElementById('kmeans_plot').innerHTML = plotHtmls[currentPlotIndex];
-                }
-            }
-        });
-
-        function reloadPlotly() {
-            Plotly.d3.selectAll(".plotly-graph-div").each(function () {
-                Plotly.Plots.resize(this);
-            });
+        function captureManualPoints(event) {
+            const coords = event.points[0];  // Get the clicked point coordinates
+            manualCenters.push([coords.x, coords.y]); // Store in manualCenters array
+            console.log("Manual centers: ", manualCenters);
+            
+            // You can update the plot here to reflect the clicked points
         }
+        // Add Plotly click event for manual point selection
+        document.getElementById('plot').on('plotly_click', captureManualPoints);
     </script>
-  </body>
+
+</body>
+
 </html>
