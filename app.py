@@ -1,12 +1,8 @@
 from flask import Flask, render_template, jsonify, request
 import numpy as np
-import matplotlib
-matplotlib.use('Agg')  # To run Matplotlib without a display server
-import matplotlib.pyplot as plt
 from kmeans import KMeans  # Your custom KMeans implementation
 import plotly.graph_objects as go
 import json
-
 app = Flask(__name__)
 
 @app.route('/')
@@ -19,91 +15,66 @@ def generate_dataset():
     points = np.random.uniform(-10, 10, (500, 2))  # 500 random points
     np.save('dataset.npy', points)  # Save the dataset so it persists across steps
     
-    # Create a Plotly scatter plot
-    fig = go.Figure(data=go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers'))
-    plot_html = fig.to_html(full_html=False)
-
-    return render_template('index.html', plot_html=plot_html, k=3, method='Random')
+    # Send the points as JSON
+    return jsonify({'points': points.tolist()})
 
 @app.route('/run_kmeans', methods=['POST'])
 def run_kmeans():
-    # k = int(request.form['k'])
-    # method = request.form['init_method']  # Random, Farthest, KMeans++ or Manual
+    k = int(request.json['k'])
+    method = request.json['method']  # Random, Farthest, KMeans++ or Manual
 
-    # # Load the dataset
-    # points = np.load('dataset.npy')
-
-    # # Initialize and run the KMeans algorithm
-    # kmeans = KMeans(data=points, n_clusters=k, init_method=method)
-    # kmeans.fit(points)
-
-    # # Generate the final plot
-    # plot_html = kmeans.plot()
-
-    # return render_template('index.html', plot_html=plot_html, k=k, method=method)
-    k = int(request.form['k'])
-    method = request.form['init_method']  # Random, Farthest, KMeans++ or Manual
+    if method == 'manual':
+        manual_centers = request.json['manual_centroids']
+    else:
+        manual_centers = []
 
     # Load the dataset
     points = np.load('dataset.npy')
 
     # Initialize and run the KMeans algorithm
     kmeans = KMeans(data=points, n_clusters=k, init_method=method)
-    kmeans.lloyds(method)
+    kmeans.lloyds(method, manual_centers=manual_centers)
 
-    while kmeans.step():
-        pass
+    # Get the final centroids and point labels
+    centroids = kmeans.centers
+    labels = kmeans.assignment
 
-    # return jsonify(plot_htmls=[plot_html])
-    return render_template('index.html', plot_html=kmeans.snaps[-1], k=k, method=method)
+    # return jsonify({'centroids': centroids.tolist(), 'points': points.tolist(), 'labels': labels})
+    return jsonify({'centroids_list': [centroids.tolist()], 'points': points.tolist(), 'labels_list': [labels]})
+
+
 
 @app.route('/step', methods=['POST'])
 def step():
-    k = int(request.form['k'])
-    method = request.form['init_method']  # Random, Farthest, KMeans++ or Manual
-    step_count = int(request.form['step_count']) # need to implement this in the front end
+    k = int(request.json['k'])
+    method = request.json['method']
 
-    # app will save the list of htmls in the backend and send the next html to the front end
-
-    if step_count == -1:
-        # we need to make the model and the snaps
-        # Load the dataset
-        points = np.load('dataset.npy')
-
-        # Initialize and run the KMeans algorithm
-        kmeans = KMeans(data=points, n_clusters=k, init_method=method)
-        kmeans.lloyds(method)
-
-        while kmeans.step():
-            pass
-
-        with open('snaps.json', 'w', encoding='utf-8') as f:
-            json.dump(kmeans.snaps, f)
-        
-        snaps = kmeans.snaps
-        print(len(snaps))
+    if method == 'manual':
+        manual_centers = request.json['manual_centroids']
     else:
-        # we need to load the snaps and send the next snap
+        manual_centers = []
 
-        with open('snaps.json', 'r', encoding='utf-8') as f:
-            snaps = json.load(f)
+    points = np.load('dataset.npy')
 
-            if step_count == len(snaps):
-                return render_template('index.html', plot_html=snaps[step_count-1], k=k, method=method, step_count=step_count, warning=True)
-            return render_template('index.html', plot_html=snaps[step_count], k=k, method=method, step_count=step_count+1)
-        
+    kmeans = KMeans(data=points, n_clusters=k, init_method=method)
+    kmeans.lloyds(method, manual_centers=manual_centers)
 
-    return render_template('index.html', plot_html=snaps[step_count], k=k, method=method, step_count=step_count+1)
+    centroids_list = []
+    labels_list = []
+
+    while kmeans.step():
+        centroids_list.append(kmeans.centers.tolist())
+        labels_list.append(kmeans.assignment)
+
+    return jsonify({'centroids_list': centroids_list, 'points': points.tolist(), 'labels_list': labels_list})
+
+
 
 @app.route('/reset_kmeans', methods=['POST'])
 def reset_kmeans():
-    # simply load the dataset and return the initial plot
     points = np.load('dataset.npy')
-    fig = go.Figure(data=go.Scatter(x=points[:, 0], y=points[:, 1], mode='markers'))
-    plot_html = fig.to_html(full_html=False)
 
-    return render_template('index.html', plot_html=plot_html, k=3, method='Random')
-
+    return jsonify({'points': points.tolist()})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=3000)

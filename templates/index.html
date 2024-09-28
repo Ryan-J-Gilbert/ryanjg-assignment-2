@@ -9,50 +9,266 @@
 </head>
 
 <body>
-    <form id="kmeans_form" method="POST">
+    <style>
+        body {
+            background-color: #f0f4f8; /* Slight background tint */
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .container {
+            width: 60%; /* Center in the middle third */
+            text-align: center;
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        h1 {
+            color: #333;
+        }
+
+        label {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+
+        input, select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            background-color: #007BFF; /* Bootstrap primary color */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 10px 15px;
+            cursor: pointer;
+            margin: 5px;
+            transition: background-color 0.3s;
+        }
+
+        button:hover {
+            background-color: #0056b3; /* Darker shade on hover */
+        }
+
+        #plot {
+            margin-top: 20px;
+            height: 400px;
+            width: 100%;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>KMeans Clustering Visualization</h1>
         <div>
             <label for="k">Number of Clusters (k):</label>
-            <input type="number" id="k" name="k" value="{{ k | default(3) }}">
+            <input type="number" id="k" value="3">
         </div>
+
         <div>
             <label for="init_method">Initialization Method:</label>
-            <select id="init_method" name="init_method">
-                <option value="random" {% if method == 'random' %}selected{% endif %}>Random</option>
-                <option value="farthest" {% if method == 'farthest' %}selected{% endif %}>Farthest</option>
-                <option value="kmeans++" {% if method == 'kmeans++' %}selected{% endif %}>KMeans++</option>
+            <select id="init_method">
+                <option value="random">Random</option>
+                <option value="farthest">Farthest</option>
+                <option value="kmeans++">KMeans++</option>
+                <option value="manual">Manual</option>
             </select>
         </div>
 
-        <input type="hidden" id="step_count" name="step_count" value="{{ step_count | default(-1) }}">
+        <div>
+            <!-- Buttons for generating dataset, running KMeans, stepping, and resetting -->
+            <button onclick="generateDataset()">Generate Dataset</button>
+            <button onclick="runKMeans()">Run KMeans</button>
+            <button onclick="step()">Step</button>
+            <button onclick="resetKMeans()">Reset</button>
+        </div>
 
-        <!-- Three buttons for different actions -->
-        <button type="submit" formaction="/generate_dataset">Generate Dataset</button>
-        <button type="submit" formaction="/run_kmeans">Run KMeans</button>
-        <button type="submit" formaction="/step">Step</button>
-        <button type="submit" formaction="/reset_kmeans">Reset</button>
-    </form>
-
-    <div id="plot">{{ plot_html | safe }}</div> <!-- Placeholder for the Plotly graph -->
-
-    <!-- if warning is sent in as True, we should send an alert kmeans has converged -->
-    {% if warning | default(false) %}
-    <script>
-        alert("KMeans has converged!");
-    </script>
-    {% endif %}
+        <div id="plot"></div>
+    </div>
 
     <script>
-        function captureManualPoints(event) {
-            const coords = event.points[0];  // Get the clicked point coordinates
-            manualCenters.push([coords.x, coords.y]); // Store in manualCenters array
-            console.log("Manual centers: ", manualCenters);
-            
-            // You can update the plot here to reflect the clicked points
+        let points = [];
+        let centroidsList = [];
+        let labelsList = [];
+        let currentStep = 0;
+
+
+        let manualCentroids = [];
+
+        function plotPoints(points, centroids = [], labels = []) {
+            const colors = ['blue', 'green', 'purple', 'orange', 'pink', 'brown', 'grey', 'cyan', 'magenta'];
+            const traces = [];
+
+            if (labels.length) {
+                const clusters = [...new Set(labels)];
+                clusters.forEach((cluster, index) => {
+                    const clusterPoints = points.filter((_, i) => labels[i] === cluster);
+                    traces.push({
+                        x: clusterPoints.map(p => p[0]),
+                        y: clusterPoints.map(p => p[1]),
+                        mode: 'markers',
+                        marker: { color: colors[index % colors.length] },
+                        name: `Cluster ${cluster}`,
+                        hoverinfo: 'x+y'
+                    });
+                });
+            } else {
+                traces.push({
+                    x: points.map(p => p[0]),
+                    y: points.map(p => p[1]),
+                    mode: 'markers',
+                    marker: { color: 'blue' }
+                });
+            }
+
+            if (centroids.length) {
+                traces.push({
+                    x: centroids.map(c => c[0]),
+                    y: centroids.map(c => c[1]),
+                    mode: 'markers',
+                    marker: { color: 'red', size: 10 },
+                    name: 'Centroids',
+                    hoverinfo: 'x+y'
+                });
+            }
+
+            Plotly.newPlot('plot', traces);
+            document.getElementById('plot').on('plotly_click', handlePlotClick);
         }
-        // Add Plotly click event for manual point selection
-        document.getElementById('plot').on('plotly_click', captureManualPoints);
-    </script>
 
+        // Add click event listener to the plot
+        // document.getElementById('plot').on('plotly_click', handlePlotClick);
+
+        function handlePlotClick(event) {
+            const method = document.getElementById('init_method').value;
+
+            // Check if Manual mode is selected
+            if (method === 'manual') {
+                const x = event.points[0].x;
+                const y = event.points[0].y;
+
+                // Add the clicked point to the manual centroids
+                manualCentroids.push([x, y]);
+
+                // Plot the points along with the manual centroids
+                plotPoints(points, manualCentroids, []);
+            }
+        }
+
+        function generateDataset() {
+            fetch('/generate_dataset', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                points = data.points;
+                plotPoints(points);
+                centroidsList = []; // Reset centroids list
+                labelsList = [];    // Reset labels list
+                currentStep = 0;    // Reset current step
+            });
+        }
+
+        function runKMeans() {
+            const k = document.getElementById('k').value;
+            const method = document.getElementById('init_method').value;
+
+            fetch('/run_kmeans', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ k: k, method: method, manual_centroids: manualCentroids })
+            })
+            .then(response => response.json())
+            .then(data => {
+                centroidsList = data.centroids_list; // Store list of centroids
+                labelsList = data.labels_list; // Store list of labels
+                points = data.points; // Store points
+                currentStep = 0; // Reset step counter
+                plotPoints(points, centroidsList[currentStep], labelsList[currentStep]); // Plot initial points and centroids
+            });
+        }
+
+        function step() {
+            if (centroidsList.length === 0) {
+                // Fetch data if centroidsList is empty
+                const k = document.getElementById('k').value;
+                const method = document.getElementById('init_method').value;
+
+                fetch('/step', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ k: k, method: method, manual_centroids: manualCentroids })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    centroidsList = data.centroids_list; // Store centroids
+                    labelsList = data.labels_list; // Store labels
+                    points = data.points; // Store points
+                    currentStep = 0; // Reset current step
+                    plotPoints(points, centroidsList[currentStep], labelsList[currentStep]); // Plot initial points and centroids
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+                return; // Exit the function after fetching data
+            }
+
+            currentStep++;
+
+            // Check if we have reached the end of the available steps
+            if (currentStep >= centroidsList.length) {
+                currentStep = centroidsList.length - 1; // Stay at the last step
+                alert("KMeans has converged!");
+                return;
+            }
+
+            plotPoints(points, centroidsList[currentStep], labelsList[currentStep]); // Plot current step points and centroids
+        }
+
+        function resetKMeans() {
+            fetch('/reset_kmeans', {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                points = data.points;
+                centroidsList = []; // Reset centroids list
+                labelsList = []; // Reset labels list
+                currentStep = 0; // Reset step counter
+                manualCentroids = []; // Reset manual centroids
+                plotPoints(points); // Plot new dataset
+            });
+        }
+
+        // For manual initialization (optional)
+        document.getElementById('plot').addEventListener('plotly_click', function(event) {
+            const coords = event.points[0];
+            console.log("Clicked coordinates:", coords.x, coords.y);
+            // You can handle manual centroid initialization here
+        });
+
+        // Initialize data on page load
+        window.onload = function() {
+            const k = document.getElementById('k').value;
+            const method = document.getElementById('init_method').value;
+            generateDataset(); // Fetch initial data on page load
+        };
+    </script>
 </body>
 
 </html>
