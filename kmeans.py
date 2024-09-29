@@ -48,7 +48,8 @@ class KMeans():
 
     def make_clusters(self, centers):
         for i in range(len(self.assignment)):
-            for j in range(self.k):
+            for j in range(self.k): 
+            # for j in range(len(centers)):
                 if self.isunassigned(i):
                     self.assignment[i] = j
                     dist = self.dist(centers[j], self.data[i])

@@ -30,6 +30,7 @@ def run_kmeans():
 
     if method == 'manual':
         manual_centers = request.json['manual_centroids']
+        k = len(manual_centers)
     else:
         manual_centers = []
 
@@ -59,6 +60,7 @@ def step():
 
     if method == 'manual':
         manual_centers = request.json['manual_centroids']
+        k = len(manual_centers)
     else:
         manual_centers = []
 
@@ -81,7 +83,7 @@ def step():
 @app.route('/reset_kmeans', methods=['POST'])
 def reset_kmeans():
     '''Reset the KMeans algorithm to its initial state by reloading the dataset'''
-    
+
     points = np.load('dataset.npy')
     return jsonify({'points': points.tolist()})
 
