@@ -11,6 +11,8 @@ def index():
 
 @app.route('/generate_dataset', methods=['POST'])
 def generate_dataset():
+    '''Generate a new random dataset and return it as JSON'''
+
     # Generate a new random dataset (e.g., 2D points)
     points = np.random.uniform(-10, 10, (500, 2))  # 500 random points
     np.save('dataset.npy', points)  # Save the dataset so it persists across steps
@@ -20,6 +22,9 @@ def generate_dataset():
 
 @app.route('/run_kmeans', methods=['POST'])
 def run_kmeans():
+    '''Run the KMeans algorithm and return the final centroids and point labels'''
+
+    # Get the number of clusters and initialization method
     k = int(request.json['k'])
     method = request.json['method']  # Random, Farthest, KMeans++ or Manual
 
@@ -46,6 +51,9 @@ def run_kmeans():
 
 @app.route('/step', methods=['POST'])
 def step():
+    '''Run one step of the KMeans algorithm and return the updated centroids and point labels'''
+
+    # Get the number of clusters and initialization method
     k = int(request.json['k'])
     method = request.json['method']
 
@@ -72,8 +80,9 @@ def step():
 
 @app.route('/reset_kmeans', methods=['POST'])
 def reset_kmeans():
+    '''Reset the KMeans algorithm to its initial state by reloading the dataset'''
+    
     points = np.load('dataset.npy')
-
     return jsonify({'points': points.tolist()})
 
 if __name__ == '__main__':
